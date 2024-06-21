@@ -1,0 +1,59 @@
+#!/bin/sh
+    
+  start() {
+    printf "Starting IP Announcement: "
+    start-stop-daemon -S -q -m -b -p /var/run/announced.pid \
+              -x /usr/bin/announced.sh
+              [ $? = 0 ] && echo "OK" || echo "FAIL"
+  }
+    
+  stop() {
+    printf "Stopping IP Announcement: "
+    start-stop-daemon -K -s SIGKILL -q -p /var/run/announced.pid \
+            [ $? = 0 ] && echo "OK" || echo "FAIL"
+  }
+    
+  case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        stop
+        start
+        ;;
+    *)
+      echo "Usage: $0 {start|stop|restart}"
+      exit 1
+  esac
+  
+  exit $?
+Atenção: Ao colar o conteúdo no arquivo S60announce, garanta que não exista espaços na primeira linha do arquivo #!/bin/sh, caso contrário, isso resultará em erro de execução.
+Crie um arquivo chamado announced.sh no diretório custom-scripts/ com o conteúdo abaixo. Onde se lê <IP DO HOST> substitua pelo IP do seu computador. Use ifconfig para descobrir o IPv4.
+  #!/bin/sh
+  
+  #Destination IP and Port
+  DEST_IP=<IP DO HOST>
+  DEST_PORT=7001
+  INTERFACE="eth0"
+  
+  
+  while [ true ]; do
+    # Get IP addr, Hostname and MAC Addr
+    IP_ADDRESS=$(ip addr show $INTERFACE | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+    HOSTNAME=$(hostname)
+    MAC_ADDRESS=$(ip link show $INTERFACE | awk '/ether/ {print $2}')
+    
+    # Combine the information
+    MESSAGE="IP Address: $IP_ADDRESS, Hostname: $HOSTNAME, MAC Addr: $MAC_ADDRESS"
+      
+    # Send the message through UDP
+    echo "$MESSAGE" | nc -uw 1 $DEST_IP $DEST_PORT
+    
+    echo "Message sent: $MESSAGE"
+  
+    # Wait for 1 second before the next run
+    sleep 1
+  done
